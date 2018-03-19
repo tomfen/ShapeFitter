@@ -6,17 +6,16 @@ import cv2
 import numpy as np
 from scipy import linalg
 
+from piro_lib import fit_division_line
 
 def calculate_edge_lengths(contour):
     diffs = contour - np.roll(contour, -1, axis=0)
     magnitudes = linalg.norm(diffs, axis=2).ravel()
     return magnitudes
 
-
 def cut_polygon(polygon, start_point, end_point):
     start_index = np.where((polygon == start_point).all(axis=2))[0][0]
     end_index = np.where((polygon == end_point).all(axis=2))[0][0]
-
     if start_index < end_index:
         return polygon[start_index:end_index, :, :]
     else:
@@ -38,7 +37,7 @@ def side_of_line(points, line):
 
 print('OpenCV version: ' + cv2.__version__)
 
-path = os.path.join('sets', 'set8', '*.png')
+path = os.path.join('sets', '**', '*.png')
 
 file_paths = glob.glob(path)
 shuffle(file_paths)
@@ -47,13 +46,13 @@ for image_path in file_paths:
 
     img = cv2.imread(image_path)
     img2 = img.copy()
+    img3 = img.copy()
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     _, contours, hierarchy = cv2.findContours(img_gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contour_approx = cv2.approxPolyDP(contours[0], 3.5, closed=True)
 
     edge_lengths = calculate_edge_lengths(contour_approx)
-
     longest_edge_index = np.argmax(edge_lengths)
 
     x1, y1 = contour_approx[longest_edge_index-1, 0]
@@ -78,8 +77,34 @@ for image_path in file_paths:
         x, y = pt[0]
         cv2.drawMarker(img2, (x, y), color, cv2.MARKER_DIAMOND, markerSize=10, thickness=2)
 
-    cv2.imshow('image', img)
-    cv2.imshow('image2', img2)
+    # centroid
+    M = cv2.moments(contours[0])
+    cX = int(M["m10"] / M["m00"])
+    cY = int(M["m01"] / M["m00"])
+
+    cv2.drawMarker(img3, (cX, cY), (255, 100, 0), cv2.MARKER_STAR)
+    # corners
+    corners = cv2.goodFeaturesToTrack(img_gray, 25, 0.01, 10)
+    corners = np.int0(corners)
+
+    for i in corners:
+        x, y = i.ravel()
+        cv2.circle(img3, (x, y), 3, 255, -1)
+    #
+
+    fit_tuple = fit_division_line(cX, cY, corners)
+    if fit_tuple is not None:
+        a, b, under = fit_tuple
+        max_x = img3.shape[0]
+        cv2.line(img3, (0, int(b)), (max_x, int(max_x * a + b)), (255, 255, 0))
+        for u in under:
+            u_x, u_y = u.ravel()
+            cv2.drawMarker(img3, (u_x, u_y), (255, 255, 0), cv2.MARKER_TILTED_CROSS)
+
+    cv2.imshow('longest edge', img)
+    cv2.imshow('regression', img2)
+    cv2.imshow('centroid', img3)
+
     key = cv2.waitKey()
     if key == 27:  # ESC
         exit(0)
