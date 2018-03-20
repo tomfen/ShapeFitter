@@ -1,17 +1,17 @@
-import os
 import glob
+import os
 from random import shuffle
-
 import cv2
 import numpy as np
 from scipy import linalg
+from piro_lib import side_of_line, fit_division_line
 
-from piro_lib import fit_division_line
 
 def calculate_edge_lengths(contour):
     diffs = contour - np.roll(contour, -1, axis=0)
     magnitudes = linalg.norm(diffs, axis=2).ravel()
     return magnitudes
+
 
 def cut_polygon(polygon, start_point, end_point):
     start_index = np.where((polygon == start_point).all(axis=2))[0][0]
@@ -21,19 +21,6 @@ def cut_polygon(polygon, start_point, end_point):
     else:
         return np.concatenate([polygon[start_index:, :, :], polygon[:end_index, :, :]], axis=0)
 
-
-def side_of_line(points, line):
-    vx, vy, x0, y0 = line
-
-    # d = (x - x0) * vy - (y - y0) * vx
-
-    points = (points - np.asarray([[[x0[0], y0[0]]]]))
-    points *= np.asarray([[[vy[0], vx[0]]]])
-    distances = np.diff(points, axis=2).ravel()
-
-    # distances = [(x - x0)*vy - (y - y0)*vx for x, y in points[:, 0]]
-
-    return distances
 
 print('OpenCV version: ' + cv2.__version__)
 
@@ -77,6 +64,20 @@ for image_path in file_paths:
         x, y = pt[0]
         cv2.drawMarker(img2, (x, y), color, cv2.MARKER_DIAMOND, markerSize=10, thickness=2)
 
+    sides = sides >= 0
+    sides = np.logical_xor(sides, np.roll(sides, -1))
+    crosses = np.argwhere(sides).ravel()
+
+    try:
+        lengths = [(linalg.norm(contour_approx[ind, 0] - contour_approx[(ind+1)%contour_approx.shape[0], 0]), ind) for ind in crosses]
+        longest_idx = crosses[lengths.index(max(lengths))]
+        x1, y1 = contour_approx[longest_idx % contour_approx.shape[0], 0]
+        x2, y2 = contour_approx[(longest_idx+1) % contour_approx.shape[0], 0]
+        cv2.drawMarker(img2, (x1, y1), (255, 255, 255), cv2.MARKER_STAR)
+        cv2.line(img2, (x1, y1), (x2, y2), (0, 0, 255), 2)
+    except Exception as e:
+        print(e)
+
     # centroid
     M = cv2.moments(contours[0])
     cX = int(M["m10"] / M["m00"])
@@ -87,19 +88,20 @@ for image_path in file_paths:
     corners = cv2.goodFeaturesToTrack(img_gray, 25, 0.01, 10)
     corners = np.int0(corners)
 
-    for i in corners:
+    for i in contour_approx:
         x, y = i.ravel()
         cv2.circle(img3, (x, y), 3, 255, -1)
     #
 
-    fit_tuple = fit_division_line(cX, cY, corners)
+    fit_tuple = fit_division_line(cX, cY, contour_approx)
     if fit_tuple is not None:
-        a, b, under = fit_tuple
-        max_x = img3.shape[0]
-        cv2.line(img3, (0, int(b)), (max_x, int(max_x * a + b)), (255, 255, 0))
-        for u in under:
-            u_x, u_y = u.ravel()
-            cv2.drawMarker(img3, (u_x, u_y), (255, 255, 0), cv2.MARKER_TILTED_CROSS)
+        under, (vx, vy, x0, y0) = fit_tuple
+
+        cv2.line(img3, (x0-vx*1000, y0-vy*1000), (x0+vx*1000, y0+vy*1000), (255, 255, 0))
+
+        for point in under:
+            x, y = point.ravel()
+            cv2.drawMarker(img3, (x, y), (255, 100, 0), cv2.MARKER_TRIANGLE_DOWN)
 
     cv2.imshow('longest edge', img)
     cv2.imshow('regression', img2)
