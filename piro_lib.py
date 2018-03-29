@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 
-def side_of_line(points, line):
+def distances_from_line(points, line):
     vx, vy, x0, y0 = line
     # d = (x - x0) * vy - (y - y0) * vx
 
