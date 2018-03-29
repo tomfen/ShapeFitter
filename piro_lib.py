@@ -1,36 +1,35 @@
-import math
+import cv2
 import numpy as np
 
 
 def side_of_line(points, line):
     vx, vy, x0, y0 = line
-
     # d = (x - x0) * vy - (y - y0) * vx
 
-    points = (points - np.asarray([[[x0[0], y0[0]]]]))
-    points *= np.asarray([[[vy[0], vx[0]]]])
+    points = (points - np.asarray([[[x0, y0]]]))
+    points *= np.asarray([[[vy, vx]]])
     distances = np.diff(points, axis=2).ravel()
-
-    # distances = [(x - x0)*vy - (y - y0)*vx for x, y in points[:, 0]]
 
     return distances
 
 
-def fit_division_line(x, y, corners):
+def centroid(contour):
+    m = cv2.moments(contour)
+    x = m["m10"] / m["m00"]
+    y = m["m01"] / m["m00"]
+    return x, y
 
-    for angle in range(0, 360, 1):
 
-        angle = math.pi*2 * angle / 360
+def cut_polygon(polygon, start_point, end_point):
+    start_index = np.where(np.equal(polygon, start_point).all(axis=2))[0][0]
+    end_index = np.where(np.equal(polygon, end_point).all(axis=2))[0][0]
+    if start_index < end_index:
+        return polygon[start_index:end_index, :, :]
+    else:
+        return np.concatenate([polygon[start_index:, :, :], polygon[:end_index, :, :]], axis=0)
 
-        vx = math.cos(angle)
-        vy = math.sin(angle)
 
-        line = np.asarray([[vx], [vy], [x], [y]])
-
-        sides = side_of_line(corners, line) > 0
-
-        if np.count_nonzero(sides) == 2:
-            under = np.compress(sides, corners, axis=0)
-            return under, line
-
-    return None
+def calculate_edge_lengths(contour):
+    diffs = contour - np.roll(contour, -1, axis=0)
+    magnitudes = np.linalg.norm(diffs, axis=2).ravel()
+    return magnitudes
