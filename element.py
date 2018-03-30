@@ -78,9 +78,10 @@ class Element:
     @staticmethod
     def normalize(cut):
         ret = cut.copy()
+        # ret = cv2.approxPolyDP(ret, 2, False)
         center = np.floor_divide((ret[-1:, :, :] + ret[:1, :, :]), 2)
         ret -= center
-        ret = ret.astype("float")
+        ret = ret.astype("float64")
 
         _x, _y = ret[0, 0]
         a = np.math.atan2(_y, _x)
@@ -89,18 +90,24 @@ class Element:
 
         for i in range(ret.shape[0]):
             pt = ret[i, 0]
-            pt = [sin * pt[0] - cos * pt[1], cos * pt[0] + sin * pt[1]]
+            pt = [cos * pt[0] + sin * pt[1], -sin * pt[0] + cos * pt[1]]
             ret[i, 0] = pt
 
+        ret = ret * 200 / ret[-1, 0, 0]
         return ret
 
     def cut_representation(self):
-        img = np.zeros_like(self.img)
-        shift = [[[int(img.shape[1]/2), int(img.shape[0]/2)]]]
+
         cut = self.cut_normalized.astype("int")
+
+        img_shape = (2*abs(max(cut[:, :, 1].min(), cut[:, :, 1].max(), key=abs)) + 10,
+                     2*abs(max(cut[:, :, 0].min(), cut[:, :, 0].max(), key=abs)) + 10, 3)
+
+        img = np.zeros(img_shape, np.uint8)
+        shift = [[[img_shape[1]//2, img_shape[0]//2]]]
         cut += shift
 
-        cv2.line(img, (int(img.shape[1]/2), 0), (int(img.shape[1]/2), img.shape[0]), (50, 50, 50), 1)
+        cv2.line(img, (0, int(img.shape[0]/2)), (img.shape[1], int(img.shape[0]/2)), (50, 50, 50), 1)
 
         cv2.polylines(img, [cut], False, (255, 255, 255), 1)
         cv2.circle(img, tuple(shift[0][0]), 4, (255, 255, 255), 1)
