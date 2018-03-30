@@ -73,7 +73,9 @@ class Element:
     @staticmethod
     def similarity(element1, element2):
         # TODO
-        return np.random.random()
+        curve1 = element1.cut_normalized.astype('int')
+        curve2 = element2.cut_normalized.astype('int')
+        return -cv2.contourArea(np.concatenate((curve1, -curve2), axis=0))
 
     @staticmethod
     def normalize(cut):
