@@ -24,12 +24,12 @@ def cut_polygon(polygon, start_point, end_point):
     start_index = np.where(np.equal(polygon, start_point).all(axis=2))[0][0]
     end_index = np.where(np.equal(polygon, end_point).all(axis=2))[0][0]
     if start_index < end_index:
-        return polygon[start_index:end_index, :, :]
+        return polygon[start_index:end_index+1, :, :]
     else:
-        return np.concatenate([polygon[start_index:, :, :], polygon[:end_index, :, :]], axis=0)
+        return np.concatenate([polygon[start_index:, :, :], polygon[:end_index+1, :, :]], axis=0)
 
 
-def calculate_edge_lengths(contour):
+def edge_lengths(contour):
     diffs = contour - np.roll(contour, -1, axis=0)
     magnitudes = np.linalg.norm(diffs, axis=2).ravel()
     return magnitudes

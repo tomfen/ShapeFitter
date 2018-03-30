@@ -19,6 +19,7 @@ for image_path in file_paths:
     element = Element(image_path)
 
     cv2.imshow("Image", element.representation())
+    cv2.imshow("Cut", element.cut_representation())
 
     key = cv2.waitKey()
     if key == 27:  # ESC
