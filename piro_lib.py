@@ -37,3 +37,13 @@ def edge_lengths(contour):
 
 def distance(pt1, pt2):
     return np.linalg.norm(pt1 - pt2)
+
+
+def angle(a, b, c):
+    ba = a - b
+    bc = c - b
+
+    cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
+    ang = np.arccos(cosine_angle)
+
+    return np.degrees(ang)
