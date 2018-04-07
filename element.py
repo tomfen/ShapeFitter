@@ -126,18 +126,17 @@ class Element:
             pt = [pt[0] * m[0, 0] + pt[1] * m[0, 1] + m[0, 2], pt[0] * m[1, 0] + pt[1] * m[1, 1] + m[1, 2]]
             ret[i, 0] = pt
 
-        average = np.average(ret[:, 0, 1])
-        ret -= np.asarray([[[0, average]]])
-
-        max_abs_y = abs(max(ret[:, :, 1].min(), ret[:, :, 1].max(), key=abs))
-        ret *= np.asarray([[[1.0, Element._SIGNAL_MAGNITUDE/max_abs_y]]])
-
         return ret
 
     @staticmethod
     def as_signal(curve):
         f = interpolate.interp1d(curve[:, 0, 0], curve[:, 0, 1], bounds_error=False, fill_value=0)
-        return np.asarray([f(x) for x in range(Element._SIGNAL_LENGTH)])
+        signal = np.asarray([f(x) for x in range(Element._SIGNAL_LENGTH)])
+
+        avg = np.average(signal)
+        std = np.std(signal)
+
+        return (signal - avg) / std
 
     @staticmethod
     def cut_representation(element1, element2):
