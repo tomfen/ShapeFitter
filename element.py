@@ -10,6 +10,7 @@ class Element:
     _SIGNAL_LENGTH = 300
     _SIGNAL_MAGNITUDE = 64
     _NORMALIZATION_HEIGHT = 100
+    _SIDE_MIN_LENGTH = 20
 
     def __init__(self, image_path):
         self.img = cv2.imread(image_path)
@@ -37,6 +38,16 @@ class Element:
 
         self.pt_A = self.contour_approx[longest_idx, 0]
         self.pt_B = self.contour_approx[(longest_idx + 1) % self.contour_approx.shape[0], 0]
+
+        # fixing cut points, if they're in wrong place
+        side_length_left = distance(self.pt_A, self.cut_end)
+        side_length_right = distance(self.pt_B, self.cut_start)
+
+        if side_length_left < Element._SIDE_MIN_LENGTH:
+            self.cut_end = self.contour_approx[(longest_idx - 2) % self.contour_approx.shape[0], 0]
+
+        if side_length_right < Element._SIDE_MIN_LENGTH:
+            self.cut_start = self.contour_approx[(longest_idx + 3) % self.contour_approx.shape[0], 0]
 
         self.pt_C, self.pt_D = self.find_cd()
 
@@ -104,6 +115,9 @@ class Element:
 
     @staticmethod
     def similarity(element1, element2):
+        if len(element1.contour_approx) == 4 and len(element2.contour_approx) == 4:
+            return float('inf')
+
         curve1 = element1.signal
         curve2 = element2.signal
         cross_correlation = signal.correlate(curve1, np.flip(-curve2, axis=0))
