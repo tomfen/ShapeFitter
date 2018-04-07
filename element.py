@@ -1,9 +1,16 @@
 import cv2
-from piro_lib import centroid, distances_from_line, cut_polygon
+import sys
+
+from piro_lib import *
 import numpy as np
+from scipy import interpolate, signal
 
 
 class Element:
+    _SIGNAL_LENGTH = 300
+    _SIGNAL_MAGNITUDE = 100
+    _NORMALIZATION_HEIGHT = 100
+
     def __init__(self, image_path):
         self.img = cv2.imread(image_path)
         img_gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
@@ -28,9 +35,27 @@ class Element:
         self.cut_end = self.contour_approx[(longest_idx - 1) % self.contour_approx.shape[0], 0]
         self.cut_start = self.contour_approx[(longest_idx + 2) % self.contour_approx.shape[0], 0]
 
+        self.pt_A = self.contour_approx[longest_idx, 0]
+        self.pt_B = self.contour_approx[(longest_idx + 1) % self.contour_approx.shape[0], 0]
+
+        self.pt_C, self.pt_D = self.find_cd()
+
         self.cut = cut_polygon(self.contour, self.cut_start, self.cut_end)
 
-        self.cut_normalized = self.normalize(self.cut)
+        self.cut_normalized = self.normalize()
+        self.signal = self.as_signal(self.cut_normalized)
+
+    def find_cd(self):
+
+        distance_ae = distance(self.pt_A, self.cut_end)
+        distance_bs = distance(self.pt_B, self.cut_start)
+
+        if distance_ae > distance_bs:
+            c = self.pt_A + (self.cut_end - self.pt_A)*(distance_bs/distance_ae)
+            return c, self.cut_start
+        else:
+            d = self.pt_B + (self.cut_start - self.pt_B)*(distance_ae/distance_bs)
+            return self.cut_end, d
 
     def representation(self):
         img_copy = self.img.copy()
@@ -54,6 +79,15 @@ class Element:
             x, cy = pt[0]
             cv2.drawMarker(img_copy, (x, cy), color, cv2.MARKER_DIAMOND, markerSize=10, thickness=2)
 
+        cv2.drawMarker(img_copy, tuple(self.pt_A), (150, 150, 150), cv2.MARKER_CROSS, markerSize=10)
+        cv2.putText(img_copy, 'A', tuple(self.pt_A), cv2.FONT_HERSHEY_PLAIN, 2, (150, 150, 150))
+        cv2.drawMarker(img_copy, tuple(self.pt_B), (150, 150, 150), cv2.MARKER_CROSS, markerSize=10)
+        cv2.putText(img_copy, 'B', tuple(self.pt_B), cv2.FONT_HERSHEY_PLAIN, 2, (150, 150, 150))
+        cv2.drawMarker(img_copy, tuple(self.pt_C.astype('int')), (150, 150, 150), cv2.MARKER_CROSS, markerSize=10)
+        cv2.putText(img_copy, 'C', tuple(self.pt_C.astype('int')), cv2.FONT_HERSHEY_PLAIN, 2, (150, 150, 150))
+        cv2.drawMarker(img_copy, tuple(self.pt_D.astype('int')), (150, 150, 150), cv2.MARKER_CROSS, markerSize=10)
+        cv2.putText(img_copy, 'D', tuple(self.pt_D.astype('int')), cv2.FONT_HERSHEY_PLAIN, 2, (150, 150, 150))
+
         return img_copy
 
     @staticmethod
@@ -64,53 +98,64 @@ class Element:
         for i in indices:
             p1 = contour[i, 0]
             p2 = contour[(i + 1) % contour.shape[0], 0]
-            distance = np.linalg.norm(p1-p2)
-
-            lengths.append(distance)
+            lengths.append(distance(p1, p2))
 
         return lengths
 
     @staticmethod
     def similarity(element1, element2):
         # TODO
-        curve1 = element1.cut_normalized.astype('int')
-        curve2 = element2.cut_normalized.astype('int')
-        return -cv2.contourArea(np.concatenate((curve1, -curve2), axis=0))
+        curve1 = element1.signal
+        curve2 = element2.signal
+        cross_correlation = signal.correlate(curve1, np.flip(-curve2, axis=0))
+        return cross_correlation.max()
 
-    @staticmethod
-    def normalize(cut):
-        ret = cut.copy()
-        # ret = cv2.approxPolyDP(ret, 2, False)
-        center = np.floor_divide((ret[-1:, :, :] + ret[:1, :, :]), 2)
-        ret -= center
-        ret = ret.astype("float64")
+    def normalize(self):
 
-        _x, _y = ret[0, 0]
-        a = np.math.atan2(_y, _x)
-        sin = np.math.sin(a)
-        cos = np.math.cos(a)
+        src_pts = np.asarray([[self.pt_A], [self.pt_B], [self.pt_C], [self.pt_D]])
+        dst_pts = np.asarray([[[0, Element._NORMALIZATION_HEIGHT]],
+                              [[Element._SIGNAL_LENGTH, Element._NORMALIZATION_HEIGHT]],
+                              [[0, 0]],
+                              [[Element._SIGNAL_LENGTH, 0]]])
+        m, _ = cv2.findHomography(src_pts, dst_pts)
+
+        ret = self.cut.copy()
+        ret = ret.astype('float')
 
         for i in range(ret.shape[0]):
             pt = ret[i, 0]
-            pt = [cos * pt[0] + sin * pt[1], -sin * pt[0] + cos * pt[1]]
+            pt = [pt[0] * m[0, 0] + pt[1] * m[0, 1] + m[0, 2], pt[0] * m[1, 0] + pt[1] * m[1, 1] + m[1, 2]]
             ret[i, 0] = pt
 
-        ret = ret * 200 / ret[-1, 0, 0]
+        average = np.average(ret[:, 0, 1])
+        ret -= np.asarray([[[0, average]]])
+
+        max_abs_y = abs(max(ret[:, :, 1].min(), ret[:, :, 1].max(), key=abs))
+        ret *= np.asarray([[[1.0, Element._SIGNAL_MAGNITUDE/max_abs_y]]])
+
         return ret
+
+    @staticmethod
+    def as_signal(curve):
+        f = interpolate.interp1d(curve[:, 0, 0], curve[:, 0, 1], bounds_error=False, fill_value=0)
+        return np.asarray([f(x) for x in range(Element._SIGNAL_LENGTH)])
 
     def cut_representation(self):
 
         cut = self.cut_normalized.astype("int")
 
-        img_shape = (2*abs(max(cut[:, :, 1].min(), cut[:, :, 1].max(), key=abs)) + 10,
-                     2*abs(max(cut[:, :, 0].min(), cut[:, :, 0].max(), key=abs)) + 10, 3)
+        img_shape = (Element._SIGNAL_MAGNITUDE*2, Element._SIGNAL_LENGTH, 3)
 
         img = np.zeros(img_shape, np.uint8)
-        shift = [[[img_shape[1]//2, img_shape[0]//2]]]
+        shift = [[[0, img_shape[0]//2]]]
+
         cut += shift
 
         cv2.line(img, (0, int(img.shape[0]/2)), (img.shape[1], int(img.shape[0]/2)), (50, 50, 50), 1)
 
+        as_signal = np.asarray([[[x, y]] for x, y in enumerate(self.signal)], dtype='int') + shift
+
         cv2.polylines(img, [cut], False, (255, 255, 255), 1)
+        cv2.polylines(img, [as_signal], False, (255, 0, 255), 1)
         cv2.circle(img, tuple(shift[0][0]), 4, (255, 255, 255), 1)
         return img

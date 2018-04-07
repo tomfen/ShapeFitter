@@ -33,3 +33,7 @@ def edge_lengths(contour):
     diffs = contour - np.roll(contour, -1, axis=0)
     magnitudes = np.linalg.norm(diffs, axis=2).ravel()
     return magnitudes
+
+
+def distance(pt1, pt2):
+    return np.linalg.norm(pt1 - pt2)

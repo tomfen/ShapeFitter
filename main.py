@@ -19,10 +19,10 @@ if len(sys.argv) > 1:
 
     for i in range(element_number):
         for j in range(element_number):
-            similarity[i][j] = Element.similarity(elements[i], elements[j])
+            similarity[i][j] = Element.similarity(elements[i], elements[j]) if i != j else float('-inf')
 
     for i in similarity:
-        best_fit = sorted(range(len(i)), key=i.__getitem__, reverse=True)[:5]
+        best_fit = sorted(range(len(i)), key=i.__getitem__, reverse=True)
         print(' '.join([str(x) for x in best_fit]))
 
 else:
