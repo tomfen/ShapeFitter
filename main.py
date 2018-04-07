@@ -26,26 +26,51 @@ if len(sys.argv) > 1:
         print(' '.join([str(x) for x in best_fit]))
 
 else:
-    path = os.path.join('sets', '**', '*.png')
+    path = os.path.join('sets', 'set5')
+    N = len(glob.glob(os.path.join(path, '*.png')))
 
-    file_paths = glob.glob(path)
-    shuffle(file_paths)
+    image_paths = [os.path.join(path, '%d.png' % i) for i in range(N)]
 
-    for image_path1 in file_paths:
-        element1 = Element(image_path1)
+    with open(os.path.join(path, 'correct.txt')) as correct_file:
+        correct_answers = [int(x.strip()) for x in correct_file.readlines()]
 
-        cv2.imshow("Image1", element1.representation())
+    elements = [Element(image_path) for image_path in image_paths]
+    element_number = len(elements)
 
-        for image_path2 in file_paths:
-            element2 = Element(image_path2)
+    similarity = [[None] * element_number for _ in range(element_number)]
 
-            cv2.imshow("Image2", element2.representation())
+    for i in range(element_number):
+        for j in range(element_number):
+            similarity[i][j] = Element.similarity(elements[i], elements[j]) if i != j else float('-inf')
 
-            cv2.imshow("Cut comparison", Element.cut_representation(element1, element2))
+    best_fit = []
+    for i in similarity:
+        best_fit.append(sorted(range(len(i)), key=i.__getitem__, reverse=True)[0])
 
-            print('Comparing %s with %s: %d' %
-                  (image_path1,  image_path2, Element.similarity(element1, element2)))
+    everything_correct = True
+
+    for i in range(element_number):
+        correct = correct_answers[i]
+        predicted = best_fit[i]
+
+        if correct != predicted:
+            everything_correct = False
+            print('mismatched element %d: predicted %d, should be %d' % (i, predicted, correct))
+
+            element_compared = elements[i]
+            element_predicted = elements[predicted]
+            element_correct = elements[correct]
+
+            cv2.imshow("Compared", element_compared.representation())
+            cv2.imshow("Predicted", element_predicted.representation())
+            cv2.imshow("Correct", element_correct.representation())
+
+            cv2.imshow("mismatch comparison", Element.cut_representation(element_compared, element_predicted))
+            cv2.imshow("correct comparison", Element.cut_representation(element_compared, element_correct))
 
             key = cv2.waitKey()
             if key == 27:  # ESC
                 exit(0)
+
+    if everything_correct:
+        print('Everything was correct')

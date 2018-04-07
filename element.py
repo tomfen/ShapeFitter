@@ -8,7 +8,7 @@ from scipy import interpolate, signal
 
 class Element:
     _SIGNAL_LENGTH = 300
-    _SIGNAL_MAGNITUDE = 100
+    _SIGNAL_MAGNITUDE = 64
     _NORMALIZATION_HEIGHT = 100
 
     def __init__(self, image_path):
@@ -141,16 +141,19 @@ class Element:
     @staticmethod
     def cut_representation(element1, element2):
 
-        img_shape = (Element._SIGNAL_MAGNITUDE*2, Element._SIGNAL_LENGTH, 3)
+        img_shape = (Element._SIGNAL_MAGNITUDE*5, Element._SIGNAL_LENGTH, 3)
 
         img = np.zeros(img_shape, np.uint8)
         shift = [[[0, img_shape[0]//2]]]
         cv2.line(img, (0, int(img.shape[0] / 2)), (img.shape[1], int(img.shape[0] / 2)), (50, 50, 50), 1)
 
-        as_signal1 = np.asarray([[[x, y]] for x, y in enumerate(-np.flip(element1.signal, 0))], dtype='int') + shift
-        as_signal2 = np.asarray([[[x, y]] for x, y in enumerate(element2.signal)], dtype='int') + shift
+        as_signal1 = np.asarray([[[x, y]] for x, y in enumerate(-np.flip(element1.signal, 0))])
+        as_signal2 = np.asarray([[[x, y]] for x, y in enumerate(element2.signal)])
 
-        cv2.polylines(img, [as_signal1], False, (255, 0, 255), 1)
-        cv2.polylines(img, [as_signal2], False, (255, 255, 0), 1)
+        as_signal1 = as_signal1 * np.asarray([[[1, Element._SIGNAL_MAGNITUDE]]]) + shift
+        as_signal2 = as_signal2 * np.asarray([[[1, Element._SIGNAL_MAGNITUDE]]]) + shift
+
+        cv2.polylines(img, [as_signal1.astype('int')], False, (255, 0, 255), 1)
+        cv2.polylines(img, [as_signal2.astype('int')], False, (255, 255, 0), 1)
 
         return img
