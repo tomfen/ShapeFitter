@@ -1,6 +1,3 @@
-import cv2
-import sys
-
 from piro_lib import *
 import numpy as np
 from scipy import interpolate, signal
@@ -114,14 +111,10 @@ class Element:
             x, cy = pt[0]
             cv2.drawMarker(img_copy, (x, cy), color, cv2.MARKER_DIAMOND, markerSize=10, thickness=2)
 
-        cv2.drawMarker(img_copy, tuple(self.pt_A), (150, 150, 150), cv2.MARKER_CROSS, markerSize=10)
-        cv2.putText(img_copy, 'A', tuple(self.pt_A), cv2.FONT_HERSHEY_PLAIN, 2, (150, 150, 150))
-        cv2.drawMarker(img_copy, tuple(self.pt_B), (150, 150, 150), cv2.MARKER_CROSS, markerSize=10)
-        cv2.putText(img_copy, 'B', tuple(self.pt_B), cv2.FONT_HERSHEY_PLAIN, 2, (150, 150, 150))
-        cv2.drawMarker(img_copy, tuple(self.pt_C.astype('int')), (150, 150, 150), cv2.MARKER_CROSS, markerSize=10)
-        cv2.putText(img_copy, 'C', tuple(self.pt_C.astype('int')), cv2.FONT_HERSHEY_PLAIN, 2, (150, 150, 150))
-        cv2.drawMarker(img_copy, tuple(self.pt_D.astype('int')), (150, 150, 150), cv2.MARKER_CROSS, markerSize=10)
-        cv2.putText(img_copy, 'D', tuple(self.pt_D.astype('int')), cv2.FONT_HERSHEY_PLAIN, 2, (150, 150, 150))
+        for pt, label in [(self.pt_A, 'A'), (self.pt_B, 'B'),
+                          (self.pt_C.astype('int'), 'C'), (self.pt_D.astype('int'), 'D')]:
+            cv2.drawMarker(img_copy, tuple(pt), (150, 150, 150), cv2.MARKER_CROSS, markerSize=10)
+            cv2.putText(img_copy, label, tuple(pt), cv2.FONT_HERSHEY_PLAIN, 2, (150, 150, 150))
 
         return img_copy
 
@@ -140,12 +133,16 @@ class Element:
     @staticmethod
     def similarity(element1, element2):
         if len(element1.contour_approx) == 4 and len(element2.contour_approx) == 4:
-            return float('inf')
+            multiplier = 1024
+        elif len(element1.contour_approx) == 5 and len(element2.contour_approx) == 5:
+            multiplier = 1024
+        else:
+            multiplier = 1
 
         curve1 = element1.signal
         curve2 = element2.signal
         cross_correlation = signal.correlate(curve1, np.flip(-curve2, axis=0))
-        return cross_correlation.max()
+        return cross_correlation.max() * multiplier
 
     def normalize(self):
 
