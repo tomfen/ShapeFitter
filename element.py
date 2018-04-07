@@ -104,7 +104,6 @@ class Element:
 
     @staticmethod
     def similarity(element1, element2):
-        # TODO
         curve1 = element1.signal
         curve2 = element2.signal
         cross_correlation = signal.correlate(curve1, np.flip(-curve2, axis=0))
@@ -140,22 +139,19 @@ class Element:
         f = interpolate.interp1d(curve[:, 0, 0], curve[:, 0, 1], bounds_error=False, fill_value=0)
         return np.asarray([f(x) for x in range(Element._SIGNAL_LENGTH)])
 
-    def cut_representation(self):
-
-        cut = self.cut_normalized.astype("int")
+    @staticmethod
+    def cut_representation(element1, element2):
 
         img_shape = (Element._SIGNAL_MAGNITUDE*2, Element._SIGNAL_LENGTH, 3)
 
         img = np.zeros(img_shape, np.uint8)
         shift = [[[0, img_shape[0]//2]]]
+        cv2.line(img, (0, int(img.shape[0] / 2)), (img.shape[1], int(img.shape[0] / 2)), (50, 50, 50), 1)
 
-        cut += shift
+        as_signal1 = np.asarray([[[x, y]] for x, y in enumerate(-np.flip(element1.signal, 0))], dtype='int') + shift
+        as_signal2 = np.asarray([[[x, y]] for x, y in enumerate(element2.signal)], dtype='int') + shift
 
-        cv2.line(img, (0, int(img.shape[0]/2)), (img.shape[1], int(img.shape[0]/2)), (50, 50, 50), 1)
+        cv2.polylines(img, [as_signal1], False, (255, 0, 255), 1)
+        cv2.polylines(img, [as_signal2], False, (255, 255, 0), 1)
 
-        as_signal = np.asarray([[[x, y]] for x, y in enumerate(self.signal)], dtype='int') + shift
-
-        cv2.polylines(img, [cut], False, (255, 255, 255), 1)
-        cv2.polylines(img, [as_signal], False, (255, 0, 255), 1)
-        cv2.circle(img, tuple(shift[0][0]), 4, (255, 255, 255), 1)
         return img

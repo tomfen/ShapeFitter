@@ -31,15 +31,21 @@ else:
     file_paths = glob.glob(path)
     shuffle(file_paths)
 
-    for image_path in file_paths:
+    for image_path1 in file_paths:
+        element1 = Element(image_path1)
 
-        print(image_path)
+        cv2.imshow("Image1", element1.representation())
 
-        element = Element(image_path)
+        for image_path2 in file_paths:
+            element2 = Element(image_path2)
 
-        cv2.imshow("Image", element.representation())
-        cv2.imshow("Cut", element.cut_representation())
+            cv2.imshow("Image2", element2.representation())
 
-        key = cv2.waitKey()
-        if key == 27:  # ESC
-            exit(0)
+            cv2.imshow("Cut comparison", Element.cut_representation(element1, element2))
+
+            print('Comparing %s with %s: %d' %
+                  (image_path1,  image_path2, Element.similarity(element1, element2)))
+
+            key = cv2.waitKey()
+            if key == 27:  # ESC
+                exit(0)
