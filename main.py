@@ -26,7 +26,7 @@ if len(sys.argv) > 1:
         print(' '.join([str(x) for x in best_fit]))
 
 else:
-    for data_set in ['set0', 'set1', 'set2', 'set3', 'set4', 'set5', 'set6', 'set7']:
+    for data_set in ['set0', 'set1', 'set2', 'set3', 'set4', 'set5', 'set6', 'set7', 'set8']:
         path = os.path.join('sets', data_set)
         N = len(glob.glob(os.path.join(path, '*.png')))
 

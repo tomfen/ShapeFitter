@@ -164,6 +164,10 @@ class Element:
             pt = [pt[0] * m[0, 0] + pt[1] * m[0, 1] + m[0, 2], pt[0] * m[1, 0] + pt[1] * m[1, 1] + m[1, 2]]
             ret[i, 0] = pt
 
+        # stretch to remove trailing zeros
+        ret -= ret[0, 0, 0]
+        ret = ret * Element._SIGNAL_LENGTH / ret[-1, 0, 0]
+
         return ret
 
     @staticmethod
@@ -196,5 +200,10 @@ class Element:
 
         cv2.polylines(img, [as_signal1.astype('int')], False, (255, 0, 255), 1)
         cv2.polylines(img, [as_signal2.astype('int')], False, (255, 255, 0), 1)
+
+        similarity = Element.similarity(element1, element2)
+
+        cv2.putText(img, 'correlation: %s' % str(similarity),
+                    (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200))
 
         return img
