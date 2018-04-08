@@ -46,17 +46,22 @@ else:
 
         best_fit = []
         for i in similarity:
-            best_fit.append(sorted(range(len(i)), key=i.__getitem__, reverse=True)[0])
+            best_fit.append(sorted(range(len(i)), key=i.__getitem__, reverse=True))
 
         everything_correct = True
 
         for i in range(element_number):
             correct = correct_answers[i]
-            predicted = best_fit[i]
+            predicted = best_fit[i][0]
 
             if correct != predicted:
                 everything_correct = False
-                print('%s| mismatched element %d: predicted %d, should be %d' % (data_set, i, predicted, correct))
+
+                def ordinal(n):
+                    return "%d%s" % (n, "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10::4])
+
+                print('%s| mismatched element %d: predicted %d, should be %d (%s guess)' %
+                      (data_set, i, predicted, correct, ordinal(best_fit[i].index(correct) + 1)))
 
                 element_compared = elements[i]
                 element_predicted = elements[predicted]

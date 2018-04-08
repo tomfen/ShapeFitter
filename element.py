@@ -132,9 +132,9 @@ class Element:
 
     @staticmethod
     def similarity(element1, element2):
-        if len(element1.contour_approx) == 4 and len(element2.contour_approx) == 4:
+        if element1.is_4gon() and element2.is_4gon():
             multiplier = 1024
-        elif len(element1.contour_approx) == 5 and len(element2.contour_approx) == 5:
+        elif element1.is_5gon() and element2.is_5gon():
             multiplier = 1024
         else:
             multiplier = 1
@@ -163,9 +163,15 @@ class Element:
 
         # stretch to remove trailing zeros
         ret -= ret[0, 0, 0]
-        ret = ret * Element._SIGNAL_LENGTH / ret[-1, 0, 0]
+        ret = ret * (Element._SIGNAL_LENGTH-1) / ret[-1, 0, 0]
 
         return ret
+
+    def is_4gon(self):
+        return len(self.contour_approx) == 4
+
+    def is_5gon(self):
+        return len(self.contour_approx) == 5
 
     @staticmethod
     def as_signal(curve):
