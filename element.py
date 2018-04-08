@@ -33,23 +33,25 @@ class Element:
         lengths = self.edge_lengths(self.contour_approx, side_changes_indices)
         longest_idx = side_changes_indices[lengths.index(max(lengths))]
 
-        self.cut_end = self.contour_approx[(longest_idx - 1) % self.contour_approx.shape[0], 0]
-        self.cut_start = self.contour_approx[(longest_idx + 2) % self.contour_approx.shape[0], 0]
+        base_idx = longest_idx if not self.is_4gon() else self.find_4gon_base()
 
-        self.pt_A = self.contour_approx[longest_idx, 0]
-        self.pt_B = self.contour_approx[(longest_idx + 1) % self.contour_approx.shape[0], 0]
+        self.cut_end = self.contour_approx[(base_idx - 1) % self.contour_approx.shape[0], 0]
+        self.cut_start = self.contour_approx[(base_idx + 2) % self.contour_approx.shape[0], 0]
+
+        self.pt_A = self.contour_approx[base_idx, 0]
+        self.pt_B = self.contour_approx[(base_idx + 1) % self.contour_approx.shape[0], 0]
 
         # fixing cut points, if they're in wrong place
         side_length_left = distance(self.pt_A, self.cut_end)
         side_length_right = distance(self.pt_B, self.cut_start)
 
         if side_length_left < Element._SIDE_MIN_LENGTH:
-            self.cut_end = self.contour_approx[(longest_idx - 2) % self.contour_approx.shape[0], 0]
+            self.cut_end = self.contour_approx[(base_idx - 2) % self.contour_approx.shape[0], 0]
 
         if side_length_right < Element._SIDE_MIN_LENGTH:
-            self.cut_start = self.contour_approx[(longest_idx + 3) % self.contour_approx.shape[0], 0]
+            self.cut_start = self.contour_approx[(base_idx + 3) % self.contour_approx.shape[0], 0]
 
-        self.validate_base_angles(longest_idx)
+        self.validate_base_angles(base_idx)
 
         self.pt_C, self.pt_D = self.find_cd()
 
@@ -76,6 +78,18 @@ class Element:
             self.pt_A = self.contour_approx[(longest_idx - 1) % self.contour_approx.shape[0], 0]
             self.pt_B = self.contour_approx[(longest_idx + 0) % self.contour_approx.shape[0], 0]
             self.cut_start = self.contour_approx[(longest_idx + 1) % self.contour_approx.shape[0], 0]
+
+    def find_4gon_base(self):
+        a1 = angle(self.contour_approx[0][0], self.contour_approx[1][0], self.contour_approx[2][0])
+        a2 = angle(self.contour_approx[1][0], self.contour_approx[2][0], self.contour_approx[3][0])
+        a3 = angle(self.contour_approx[2][0], self.contour_approx[3][0], self.contour_approx[0][0])
+        a4 = angle(self.contour_approx[3][0], self.contour_approx[0][0], self.contour_approx[1][0])
+
+        angles = np.asarray([a1, a2, a3, a4])
+        angles -= 90
+        angles += np.roll(angles, 1)
+        angles = np.abs(angles)
+        return np.argmin(angles)
 
     def find_cd(self):
 
