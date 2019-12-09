@@ -16,7 +16,7 @@ class Element:
         img_gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
         _, img_gray = cv2.threshold(img_gray, Element._GRAY_THRESHOLD, 255, cv2.THRESH_BINARY)
 
-        _, contours, hierarchy = cv2.findContours(img_gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, hierarchy = cv2.findContours(img_gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         self.contour = max(contours, key=lambda i: len(i))
         self.contour_approx = cv2.approxPolyDP(self.contour, 3.75, closed=True)
